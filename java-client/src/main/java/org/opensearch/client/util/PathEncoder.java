@@ -14,25 +14,34 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 public class PathEncoder {
-    public static String encode(String uri) {
+
+    private final static Method formatSegmentsMethod = formatSegmentsMethod();
+    public static Method formatSegmentsMethod() {
         try {
-            if (isClassPresent("org.apache.http.client.utils.URLEncodedUtils")) {
-                // Apache HttpClient 4.x 버전 사용
-                Class<?> clazz = Class.forName("org.apache.http.client.utils.URLEncodedUtils");
-                Method method = clazz.getMethod("formatSegments", Iterable.class, Charset.class);
-                String invoke = (String) method.invoke(null, Collections.singletonList(uri), StandardCharsets.UTF_8);
-                return invoke.substring(1);
-            } else if (isClassPresent("org.apache.hc.core5.net.URLEncodedUtils")) {
-                // Apache HttpClient 5.x 버전 사용
-                Class<?> clazz = Class.forName("org.apache.hc.core5.net.URLEncodedUtils");
-                Method method = clazz.getMethod("formatSegments", Iterable.class, Charset.class);
-                String invoke = (String) method.invoke(null, Collections.singletonList(uri), StandardCharsets.UTF_8);
-                return invoke.substring(1);
-            } else {
-                throw new IllegalStateException("No suitable URLEncodedUtils class found on classpath");
-            }
+            String className = getClassName();
+            Class<?> clazz = Class.forName(className);
+            return clazz.getMethod("formatSegments", Iterable.class, Charset.class);
         } catch (Exception e) {
             throw new RuntimeException("Failed to dynamically load and invoke URLEncodedUtils", e);
+        }
+    }
+
+    public static String encode(String uri) {
+        try {
+            String invoke = (String) formatSegmentsMethod.invoke(null, Collections.singletonList(uri), StandardCharsets.UTF_8);
+            return invoke.substring(1);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to dynamically load and invoke URLEncodedUtils", e);
+        }
+    }
+
+    private static String getClassName() {
+        if (isClassPresent("org.apache.http.client.utils.URLEncodedUtils")) {
+            return "org.apache.http.client.utils.URLEncodedUtils";
+        } else if (isClassPresent("org.apache.hc.core5.net.URLEncodedUtils")) {
+            return "org.apache.hc.core5.net.URLEncodedUtils";
+        } else {
+            throw new IllegalStateException("No suitable URLEncodedUtils class found on classpath");
         }
     }
 
@@ -44,5 +53,4 @@ public class PathEncoder {
             return false;
         }
     }
-
 }
